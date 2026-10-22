@@ -6,7 +6,7 @@
 
 [![skills.sh](https://skills.sh/b/rossark0/rossark-motion-skill)](https://skills.sh/rossark0/rossark-motion-skill)
 
-For designers and engineers who want what they draw to feel alive.
+For designers and engineers who want to bring their apps and drawings to life.
 
 Making a drawing move is easy. Making it feel alive is hard: it has to breathe, look around, blink, shift its weight and act, without ever freezing or jumping. This skill helps your agent get there.
 
