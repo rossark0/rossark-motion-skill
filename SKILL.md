@@ -1,6 +1,6 @@
 ---
 name: rossark-motion-skill
-description: Bring character illustrations to life (mascots, people, scenes drawn in SVG) with calm, believable idle motion. Eyes whose pupils glide and lids blink, breathing, head tilts, and small scene props like steam, rain, a ticking clock or a buzzing phone. Use it whenever someone asks to animate an illustration, make a character "feel alive", add blinking or breathing, or build a scene's motion. Written for React Native (react-native-svg + Reanimated); the method also works on the web.
+description: Bring character illustrations to life (mascots, people, scenes drawn in SVG) with calm, believable idle motion. Eyes whose pupils glide and lids blink, breathing, head tilts, and small scene props like steam, rain, a ticking clock or a buzzing phone. Use it whenever someone asks to animate an illustration, make a character "feel alive", add blinking or breathing, or build a scene's motion. Ready-made templates for React Native (react-native-svg + Reanimated) and SwiftUI (TimelineView + Canvas); the method also works on the web.
 ---
 
 # rossark-motion-skill: living illustrations
@@ -41,7 +41,11 @@ Continuous loops (rain, conveyor, rotating sun) are linear.
 
 ## 3. The live face
 
-A ready-made module is in `templates/liveFace.tsx` (in this skill's folder). Copy it into the project, or use the project's own version if the notes name one. It exports `LiveEye`, `LiveMouth`, `track`, `Choreo`, `Keys` and `useChoreoClock`.
+Ready-made modules live in this skill's `templates/` folder. Copy the one for your platform into the project, or use the project's own version if the notes name one:
+- **React Native:** `templates/liveFace.tsx` exports `LiveEye`, `LiveMouth`, `track`, `Choreo`, `Keys` and `useChoreoClock`.
+- **SwiftUI:** `templates/LiveFace.swift` exports `drawLiveEye`, `drawLiveMouth`, `track`, `Choreo`, `Key` and `ChoreoClock`. See the SwiftUI section below.
+
+The steps, and the React Native example:
 
 1. **The static eyes.** Draw the character with plain eye whites and no pupils (if the character comes from a kit, use its "no pupils" option).
 2. **The live layer.** Inside the same transform as the head, draw two `LiveEye` on top, then anything that must cover the lids (nose, hair, glasses), then `LiveMouth` if the mouth talks or laughs.
@@ -111,6 +115,43 @@ The recipe for one loop of 6 to 9 seconds:
 5. Check frame 0 (reduced motion) and that every loop closes without a jump.
 6. Run the project's type check, lint and tests.
 7. Hand off in plain words: what moves on each screen, and what has not been seen on a real device yet.
+
+## SwiftUI
+
+The same method, with SwiftUI's tools (iOS 17+, macOS 14+; template in `templates/LiveFace.swift`).
+
+| Piece | React Native | SwiftUI |
+|---|---|---|
+| The clock | `useChoreoClock` (Reanimated `withRepeat`) | `ChoreoClock { t in ... }` (`TimelineView(.animation)`) |
+| Drawing | `react-native-svg` groups | `Canvas`: `drawLiveEye` and `drawLiveMouth` into a `GraphicsContext` already in the head's coordinates |
+| Curves | `Easing.bezierFn` | `UnitCurve.bezier` inside `track`; `Animation.travel(_:)` and `.open(_:)` for one-off animations |
+| Reduced motion | `useReducedMotion()` | `@Environment(\.accessibilityReduceMotion)` (built into `ChoreoClock`) |
+| Off screen | `live = false` | `ChoreoClock(period:, paused:)`, driven by `onAppear`/`onDisappear` and `scenePhase` |
+
+```swift
+ChoreoClock(period: choreo.period, paused: !visible) { t in
+    ZStack {
+        CharacterArt()                         // eyes drawn as plain whites, no pupils
+        Canvas { ctx, _ in
+            var head = ctx                     // the head's own coordinates
+            head.translateBy(x: headX, y: headY)
+            head.scaleBy(x: s, y: s)
+            drawLiveEye(head, side: -1, eye: eyeL, ink: ink, choreo: choreo, t: t)
+            drawLiveEye(head, side: 1, eye: eyeR, ink: ink, choreo: choreo, t: t)
+            // then whatever covers the lids (nose, fringe)
+        }
+        .allowsHitTesting(false)
+    }
+}
+```
+
+- **Breathing and head tilt:** compute them from the same `t` and apply them as render-only modifiers, which never change layout:
+  - breathing: `.offset(y: -track(t, breath))`;
+  - head tilt: `.rotationEffect(.degrees(track(t, tilt)), anchor: neckAnchor)`, on the head layer.
+- **Layers:** split the character into back-hair, body, head and front views (or images) in a `ZStack`. Tilt only the head and back hair.
+- **No springs with bounce.** Avoid `.bouncy` and `.spring` with bounce. Use `.timingCurve(...)` (the `travel` and `open` helpers), or drive everything from the clock.
+- **Cost:** a `TimelineView(.animation)` redraws every frame while it runs. Pause it off screen and in the background, and keep one per character or scene, not one per eye.
+- **Images instead of vector art:** live eyes still work. Draw the eyes as plain whites in the artwork and lay the `Canvas` over the image, with the head's transform matching the image's coordinates.
 
 ## On the web
 

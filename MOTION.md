@@ -26,6 +26,7 @@
 - **Things that open** (mouth, lid reopening, a prop appearing): ease-out `bezier(0.23, 1, 0.32, 1)`.
 - **Endless loops** (rain, conveyor, rotation): linear.
 - **Declare easings at the top of the module:** worklets capture them when they are created.
+- **In SwiftUI:** `UnitCurve.bezier` with the same points, or `.timingCurve(...)`, and never a spring with bounce.
 
 ### The live face
 1. Draw the eyes as plain whites, with no pupils.
@@ -84,7 +85,8 @@
 > Fill these in. Delete the hints in *italics* as you go.
 
 ### Where the code is
-- **Live face module:** *path, or "copy `templates/liveFace.tsx` from the skill"*
+- **Platform:** *React Native, SwiftUI, web*
+- **Live face module:** *path, or "copy `templates/liveFace.tsx` (React Native) or `templates/LiveFace.swift` (SwiftUI) from the skill"*
 - **Character / kit / poses:** *paths, and the character's coordinate system (where the head centre is, units)*
 - **Existing animated scenes to copy from:** *paths*
 
