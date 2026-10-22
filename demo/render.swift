@@ -2,11 +2,11 @@
 //
 //   swiftc -parse-as-library -target arm64-apple-macos14 \
 //     templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift demo/*.swift -o /tmp/render-demo
-//   /tmp/render-demo room /tmp/frames                # or: orbit, reveal
+//   /tmp/render-demo reveal /tmp/frames              # or: orbit, room
 //   /tmp/render-demo reveal /tmp/frames phone        # inside an iPhone, on a square page
 //   /tmp/render-demo reveal /tmp/frames phone fps=60 # smoother, for posting
 //   /tmp/render-demo reveal /tmp/frames phone 0 40   # only these frames (to check before a full render)
-//   ffmpeg -framerate 30 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 20 demo/demo.mp4
+//   ffmpeg -framerate 30 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 20 demo/reveal.mp4
 import Foundation
 import ImageIO
 import SwiftUI
@@ -17,7 +17,9 @@ func scene(_ name: String, _ t: Double, phone: Bool) -> (view: AnyView, loopMs: 
     switch name {
     case "orbit":
         return (AnyView(OrbitScene(t: t)), OrbitScene.loopMs)
-    case "reveal":
+    case "room":
+        return (AnyView(DemoScene(t: t)), DemoScene.loopMs)
+    default:
         guard phone else { return (AnyView(RevealScene(t: t)), RevealScene.loopMs) }
         // The 720-wide scene, as big as the screen allows, with the feet at 73% of the screen.
         let screen = PhoneMockup<EmptyView>.screen
@@ -27,8 +29,6 @@ func scene(_ name: String, _ t: Double, phone: Bool) -> (view: AnyView, loopMs: 
                 .scaleEffect(k, anchor: .topLeading)
                 .offset(x: -(720 * k - screen.width) / 2)
         }), RevealScene.loopMs)
-    default:
-        return (AnyView(DemoScene(t: t)), DemoScene.loopMs)
     }
 }
 
@@ -37,7 +37,7 @@ struct RenderDemo {
     @MainActor
     static func main() throws {
         var args = Array(CommandLine.arguments.dropFirst())
-        let name = args.isEmpty ? "room" : args.removeFirst()
+        let name = args.isEmpty ? "reveal" : args.removeFirst()
         let out = URL(fileURLWithPath: args.isEmpty ? "frames" : args.removeFirst())
         let phone = args.first == "phone"
         if phone { args.removeFirst() }
