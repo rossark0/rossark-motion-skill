@@ -36,6 +36,49 @@ export function track(t: number, keys: Keys): number {
   return keys[keys.length - 1][1];
 }
 
+/** A key pose for `flow`: time (ms) and value, sorted by time. */
+export type FlowKey = readonly [number, number];
+
+/**
+ * A smooth track through key poses, for acting (a body, arms, a head turn).
+ * `track` eases in and out of EVERY key, so the motion stops at each one: fine for one
+ * move (a blink, a lid), but a chain of poses then reads as stop-and-go, like a robot.
+ * `flow` passes through the keys with a continuous speed and never overshoots one
+ * (a monotone cubic). Repeat a value to hold, and layer idle life on top of the hold.
+ */
+export function flow(t: number, k: readonly FlowKey[]): number {
+  'worklet';
+  const n = k.length;
+  if (t <= k[0][0]) return k[0][1];
+  if (t >= k[n - 1][0]) return k[n - 1][1];
+  let i = 0;
+  while (k[i + 1][0] < t) i++;
+  function slope(j: number): number {
+    return (k[j + 1][1] - k[j][1]) / (k[j + 1][0] - k[j][0]);
+  }
+  function tangent(j: number): number {
+    if (j === 0 || j === n - 1) return 0;
+    const a = slope(j - 1);
+    const b = slope(j);
+    if (a * b <= 0) return 0;
+    const h0 = k[j][0] - k[j - 1][0];
+    const h1 = k[j + 1][0] - k[j][0];
+    const w0 = 2 * h1 + h0;
+    const w1 = h1 + 2 * h0;
+    return (w0 + w1) / (w0 / a + w1 / b);
+  }
+  const h = k[i + 1][0] - k[i][0];
+  const s = (t - k[i][0]) / h;
+  const s2 = s * s;
+  const s3 = s2 * s;
+  return (
+    (2 * s3 - 3 * s2 + 1) * k[i][1] +
+    (s3 - 2 * s2 + s) * h * tangent(i) +
+    (-2 * s3 + 3 * s2) * k[i + 1][1] +
+    (s3 - s2) * h * tangent(i + 1)
+  );
+}
+
 /** 0 → 1 inside the window [a, b] of a clock (eased), 0 before it, 1 after. One beat of a scene. */
 export function seg(t: number, a: number, b: number, curve: 'out' | 'inOut' = 'out'): number {
   'worklet';

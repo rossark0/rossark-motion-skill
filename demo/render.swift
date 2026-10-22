@@ -2,28 +2,55 @@
 //
 //   swiftc -parse-as-library -target arm64-apple-macos14 \
 //     templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift demo/*.swift -o /tmp/render-demo
-//   /tmp/render-demo room /tmp/frames      # or: orbit
+//   /tmp/render-demo room /tmp/frames                # or: orbit, reveal
+//   /tmp/render-demo reveal /tmp/frames phone        # inside an iPhone, on a square page
+//   /tmp/render-demo reveal /tmp/frames phone fps=60 # smoother, for posting
+//   /tmp/render-demo reveal /tmp/frames phone 0 40   # only these frames (to check before a full render)
 //   ffmpeg -framerate 30 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 20 demo/demo.mp4
 import Foundation
 import ImageIO
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
+func scene(_ name: String, _ t: Double, phone: Bool) -> (view: AnyView, loopMs: Double) {
+    switch name {
+    case "orbit":
+        return (AnyView(OrbitScene(t: t)), OrbitScene.loopMs)
+    case "reveal":
+        guard phone else { return (AnyView(RevealScene(t: t)), RevealScene.loopMs) }
+        // The 720-wide scene, as big as the screen allows, with the feet at 73% of the screen.
+        let screen = PhoneMockup<EmptyView>.screen
+        let k = screen.width / 720 * 1.85
+        return (AnyView(PhoneMockup(darkStatus: true) {
+            RevealScene(t: t, height: screen.height / k, stageTop: screen.height * 0.73 / k - 620)
+                .scaleEffect(k, anchor: .topLeading)
+                .offset(x: -(720 * k - screen.width) / 2)
+        }), RevealScene.loopMs)
+    default:
+        return (AnyView(DemoScene(t: t)), DemoScene.loopMs)
+    }
+}
+
 @main
 struct RenderDemo {
     @MainActor
     static func main() throws {
-        let args = CommandLine.arguments
-        let scene = args.count > 1 ? args[1] : "room"
-        let out = URL(fileURLWithPath: args.count > 2 ? args[2] : "frames")
+        var args = Array(CommandLine.arguments.dropFirst())
+        let name = args.isEmpty ? "room" : args.removeFirst()
+        let out = URL(fileURLWithPath: args.isEmpty ? "frames" : args.removeFirst())
+        let phone = args.first == "phone"
+        if phone { args.removeFirst() }
+        var fps = 30.0
+        if let i = args.firstIndex(where: { $0.hasPrefix("fps=") }) {
+            fps = Double(args.remove(at: i).dropFirst(4)) ?? 30
+        }
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
-        let fps = 30.0
-        let loopMs = scene == "orbit" ? OrbitScene.loopMs : DemoScene.loopMs
-        let frames = Int(loopMs / 1000 * fps)
-        for f in 0..<frames {
-            let t = Double(f) / fps * 1000
-            let content: AnyView = scene == "orbit" ? AnyView(OrbitScene(t: t)) : AnyView(DemoScene(t: t))
-            let renderer = ImageRenderer(content: content)
+        let loopMs = scene(name, 0, phone: phone).loopMs
+        let picks = args.compactMap { Int($0) }
+        let frames = picks.isEmpty ? Array(0..<Int(loopMs / 1000 * fps)) : picks
+        for f in frames {
+            let renderer = ImageRenderer(content: scene(name, Double(f) / fps * 1000, phone: phone).view)
             renderer.scale = 2
             guard let image = renderer.cgImage else { throw CocoaError(.fileWriteUnknown) }
             let url = out.appendingPathComponent(String(format: "%04d.png", f))
@@ -33,6 +60,6 @@ struct RenderDemo {
             CGImageDestinationAddImage(dest, image, nil)
             CGImageDestinationFinalize(dest)
         }
-        print("rendered \(frames) frames of \(scene) to \(out.path)")
+        print("rendered \(frames.count) frames of \(name) to \(out.path)")
     }
 }

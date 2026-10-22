@@ -51,6 +51,36 @@ public func track(_ t: Double, _ keys: Keys) -> Double {
     return keys[keys.count - 1].value
 }
 
+/// Key poses for `flow`: (ms, value), sorted by time.
+public typealias FlowKeys = [(Double, Double)]
+
+/// A smooth track through key poses, for acting (a body, arms, a head turn).
+/// `track` eases in and out of EVERY key, so the motion stops at each one: fine for one move
+/// (a blink, a lid), but a chain of poses then reads as stop-and-go, like a robot. `flow` passes
+/// through the keys with a continuous speed and never overshoots one (a monotone cubic).
+/// Repeat a value to hold, and layer idle life on top of the hold.
+public func flow(_ t: Double, _ k: FlowKeys) -> Double {
+    let n = k.count
+    if t <= k[0].0 { return k[0].1 }
+    if t >= k[n - 1].0 { return k[n - 1].1 }
+    var i = 0
+    while k[i + 1].0 < t { i += 1 }
+    func slope(_ j: Int) -> Double { (k[j + 1].1 - k[j].1) / (k[j + 1].0 - k[j].0) }
+    func tangent(_ j: Int) -> Double {
+        guard j > 0, j < n - 1 else { return 0 }
+        let a = slope(j - 1), b = slope(j)
+        guard a * b > 0 else { return 0 }
+        let h0 = k[j].0 - k[j - 1].0, h1 = k[j + 1].0 - k[j].0
+        let w0 = 2 * h1 + h0, w1 = h1 + 2 * h0
+        return (w0 + w1) / (w0 / a + w1 / b)
+    }
+    let h = k[i + 1].0 - k[i].0
+    let s = (t - k[i].0) / h
+    let s2 = s * s, s3 = s2 * s
+    return (2 * s3 - 3 * s2 + 1) * k[i].1 + (s3 - 2 * s2 + s) * h * tangent(i)
+        + (-2 * s3 + 3 * s2) * k[i + 1].1 + (s3 - s2) * h * tangent(i + 1)
+}
+
 /// 0 → 1 inside the window [a, b] of a clock (eased), 0 before it, 1 after. One beat of a scene.
 public func seg(_ t: Double, _ a: Double, _ b: Double, easeOut useEaseOut: Bool = true) -> Double {
     if t <= a { return 0 }

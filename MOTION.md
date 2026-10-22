@@ -22,10 +22,19 @@
 9. **The layout never moves:** motion lives inside the drawing.
 10. **Reduced motion:** loops freeze on a good frame 0, and one-shots show their final frame.
 11. **Nothing runs unseen:** pause off screen, when hidden and in the background.
+12. **Enough frames:** anything under ~100 ms flickers at 30 fps; render and export at 60 when you can. Blinks close in ~110 ms and reopen in ~190 ms.
+13. **Interface rules:**
+    - frequency decides how much (often seen = barely moves; rare moments get the delight);
+    - every motion has a purpose;
+    - shared elements travel, never teleport;
+    - interface moves stay under 300 ms;
+    - exits are faster than entrances;
+    - nothing appears from scale 0;
+    - interruptions continue from the current value.
 
 ### The engine
 - **Clocks:** a loop clock for idle life, a one-shot clock for a scene that tells an action. One per character, group or scene.
-- **Tracks:** keyframes `[ms, value, 'out'?]` read with `track(t, keys)`. The last key equals the first.
+- **Tracks:** keyframes `[ms, value, 'out'?]` read with `track(t, keys)`. The last key equals the first. `track` stops at every key, so use it for one move (a blink, a lid). For acting (a chain of poses), use `flow(t, keys)`, which passes through the keys without stopping and never overshoots.
 - **Helpers:**
   - `wave` (−1 to 1), for sway and breathing;
   - `loop` (0 to 1), for drift and falling;
@@ -42,6 +51,8 @@
 | Subject | Recipe |
 |---|---|
 | Character | breathing 1–2 units over 3–5 s; a blink every 3–4 s; pupils glide; head tilt 3–6° |
+| Waiting to be tapped | a jiggle every ~270 ms: squash 2%, widen 2%, the bulge trading sides |
+| Floating figure | rises in from 30% of its height below, drifts 5% down and up, leaves rising |
 | Tail, hair, ears | rotation around the root, phase delayed along the chain, 4–10° |
 | Plant | sway 1.5–4° around the base over 3–6 s; leaves on seeded phases |
 | Cloth, flag | a wave that travels along the length, growing away from the fixed edge |
@@ -56,6 +67,27 @@
 | Icon, logo | plays once on appear, then rests |
 | Chart | a one-shot draw-on, with bars staggered 40–80 ms |
 
+### Acting (a whole character)
+- **Every channel:** key pose (`flow`) + idle (`wave`s, never off while on stage) + follow-through (the parent read 90–140 ms earlier) + accents (a `wave` inside a `seg` window).
+- **Arms:** an upper arm and a forearm share a round elbow; the forearm points at shoulder angle + elbow bend.
+- **Head turns:** slide the face toward the turn (eyes 10, nose 13 in a 100-wide head) and the ears the other way. Blink on the turn.
+- **Weight:** the hips shift and carry the upper body, and the legs angle to keep the feet under it.
+- **Landing:** hover, then fall with gravity and stretch; squash hard (0.8) on contact and keep the volume (`width = 1 / height^0.6`).
+- **In the air:** limp feet (toes down, one knee folded, trading slowly). The shadow stays on the floor and scales with the height.
+- **Props:** enter from off screen already moving and roll by distance / radius. The eyes follow them. A kick hits at the middle of the swing; the prop leaves as a throw, spinning, with a short squash.
+- **Asymmetry:** the arms never mirror each other.
+- **Camera:** a view from a little above is a whole build, not a tweak: the head is 40–50% of the height, the torso is short and narrower than the head, the legs are short, the feet are round from above, and the shadow is a wide oval with the feet in its lower half. Keep it in one `build` object. A flat view keeps a thin pill shadow.
+- **Framing:** on a phone, as big as the screen allows, with the feet low.
+
+### From a reference video
+- Contact sheets at the full frame rate (`tools/sheet.sh`).
+- Measure motion with numbers (`tools/track_edges.py`): a 2% jiggle or a 5% float doesn't show to the eye.
+- Sample colors from pixels (`tools/sample_colors.py`).
+- Go part by part: feet, shadow, hands, head.
+- Compare proportions as ratios of one unit (head widths). "Stretched" means a ratio is far off.
+- Compare your render with the reference at the same moments.
+- Don't publish a copy of someone else's art.
+
 ### Performance
 - Everything is a function of one clock's time.
 - Draw many items in one SVG or `Canvas`.
@@ -68,7 +100,7 @@
 3. Pick one main action and two or three idle loops.
 4. Split the art into layers at their pivots.
 5. Put the numbers in tokens.
-6. Check frame 0, the final frames and the loop seams.
+6. Check frame 0, the final frames and the loop seams. For a character, look at a contact sheet of every 4th frame of your own render.
 7. Run the checks.
 8. Hand off: what moves, and what hasn't been seen on a real device.
 
