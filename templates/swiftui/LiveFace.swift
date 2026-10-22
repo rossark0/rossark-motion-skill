@@ -4,6 +4,8 @@
 // cheek pushes up for a happy squint, the mouth OPENS and CLOSES. One clock per
 // character (`ChoreoClock`) drives every channel through keyframe tracks.
 //
+// Needs `Motion.swift` (the engine) in the same target.
+//
 // Usage (see SKILL.md, "SwiftUI"):
 //   ChoreoClock(period: blink.period) { t in
 //       ZStack {
@@ -19,58 +21,6 @@
 //       }
 //   }
 import SwiftUI
-
-// MARK: - Curves
-
-/// Things that travel (gaze, head, lid closing): a strong ease-in-out.
-private let easeInOut = UnitCurve.bezier(
-    startControlPoint: UnitPoint(x: 0.77, y: 0),
-    endControlPoint: UnitPoint(x: 0.175, y: 1)
-)
-/// Things that open (mouth, lid reopening): a strong ease-out.
-private let easeOut = UnitCurve.bezier(
-    startControlPoint: UnitPoint(x: 0.23, y: 1),
-    endControlPoint: UnitPoint(x: 0.32, y: 1)
-)
-
-/// The same curves for SwiftUI animations elsewhere in the scene (never a bouncy spring).
-public extension Animation {
-    static func travel(_ duration: Double) -> Animation { .timingCurve(0.77, 0, 0.175, 1, duration: duration) }
-    static func open(_ duration: Double) -> Animation { .timingCurve(0.23, 1, 0.32, 1, duration: duration) }
-}
-
-// MARK: - Keyframe tracks
-
-/// A keyframe: time (ms), value, and whether the segment ARRIVING here eases out (default: ease-in-out).
-public struct Key: Sendable {
-    public let ms: Double
-    public let value: Double
-    public let easeOut: Bool
-    public init(_ ms: Double, _ value: Double, out easeOut: Bool = false) {
-        self.ms = ms
-        self.value = value
-        self.easeOut = easeOut
-    }
-}
-
-public typealias Keys = [Key]
-
-/// The value of a track at time `t` (ms).
-public func track(_ t: Double, _ keys: Keys) -> Double {
-    guard let first = keys.first else { return 0 }
-    if t <= first.ms { return first.value }
-    for i in 1..<keys.count {
-        let k1 = keys[i]
-        if t <= k1.ms {
-            let k0 = keys[i - 1]
-            let span = k1.ms - k0.ms
-            let p = span > 0 ? (t - k0.ms) / span : 1
-            let e = (k1.easeOut ? easeOut : easeInOut).value(at: p)
-            return k0.value + (k1.value - k0.value) * e
-        }
-    }
-    return keys[keys.count - 1].value
-}
 
 /// One character's choreography. `lookX`/`lookY`: pupil offset in eye units.
 /// `lid`: upper eyelid, 0 open to 1 closed (`lidRight` for a one-eyed blink or wink).
@@ -101,29 +51,8 @@ public struct Choreo: Sendable {
 
 // MARK: - The clock
 
-/// A looping clock from 0 to `period` ms. Frozen at 0 with Reduce Motion, or when `paused`
-/// (off screen, app in the background). Frame 0 must be a good drawing on its own.
-public struct ChoreoClock<Content: View>: View {
-    let period: Double
-    var paused: Bool
-    let content: (Double) -> Content
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var start = Date()
-
-    public init(period: Double, paused: Bool = false, @ViewBuilder content: @escaping (Double) -> Content) {
-        self.period = period
-        self.paused = paused
-        self.content = content
-    }
-
-    public var body: some View {
-        let still = paused || reduceMotion
-        TimelineView(.animation(minimumInterval: nil, paused: still)) { context in
-            let t = still ? 0 : (context.date.timeIntervalSince(start) * 1000).truncatingRemainder(dividingBy: period)
-            content(t)
-        }
-    }
-}
+/// The character's clock: a `LoopClock` (in Motion.swift) of `choreo.period` ms.
+public typealias ChoreoClock<Content: View> = LoopClock<Content>
 
 // MARK: - Geometry and colours
 

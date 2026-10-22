@@ -4,53 +4,24 @@
 // cheek pushes up for a happy squint, the mouth OPENS and CLOSES. One clock per
 // character drives every channel through keyframe tracks.
 //
-// Usage (see SKILL.md, "The live face"):
+// Needs `motion.ts` (the engine) next to it.
+//
+// Usage (see SKILL.md, "Characters"):
 //   1. Draw your character's eyes as plain whites, with no pupils.
 //   2. Inside the same <G> transform as the head, draw two <LiveEye> on top,
 //      then anything that must cover the eyelids (nose, hair, glasses).
 //   3. One `useChoreoClock(choreo.period, live)` per character.
-import React, { useEffect } from 'react';
-import Animated, {
-  Easing,
-  cancelAnimation,
-  useAnimatedProps,
-  useSharedValue,
-  withRepeat,
-  withTiming,
-  type SharedValue,
-} from 'react-native-reanimated';
+import React from 'react';
+import Animated, { useAnimatedProps, type SharedValue } from 'react-native-reanimated';
 import { Circle, ClipPath, Defs, G, Line, Path, Rect } from 'react-native-svg';
+import { track, useLoopClock, type Keys } from './motion';
 
-// ⚠️ Keep these at the TOP of the module. A worklet captures what it uses when
-// it is created; easings declared further down are undefined inside it.
-const EASE_IN_OUT = Easing.bezierFn(0.77, 0, 0.175, 1); // things that travel: gaze, head, lid closing
-const EASE_OUT = Easing.bezierFn(0.23, 1, 0.32, 1); // things that open: mouth, lid reopening
+export { track, type Key, type Keys } from './motion';
 
 const ARect = Animated.createAnimatedComponent(Rect);
 const APath = Animated.createAnimatedComponent(Path);
 const ACircle = Animated.createAnimatedComponent(Circle);
 const ALine = Animated.createAnimatedComponent(Line);
-
-/** A keyframe: time (ms), value, and the curve of the segment ARRIVING here ('out', or ease-in-out by default). */
-export type Key = readonly [number, number, 'out'?];
-export type Keys = readonly Key[];
-
-/** The value of a track at time `t`. */
-export function track(t: number, keys: Keys): number {
-  'worklet';
-  if (t <= keys[0][0]) return keys[0][1];
-  for (let i = 1; i < keys.length; i++) {
-    const k1 = keys[i];
-    if (t <= k1[0]) {
-      const k0 = keys[i - 1];
-      const span = k1[0] - k0[0];
-      const p = span > 0 ? (t - k0[0]) / span : 1;
-      const e = k1[2] === 'out' ? EASE_OUT(p) : EASE_IN_OUT(p);
-      return k0[1] + (k1[1] - k0[1]) * e;
-    }
-  }
-  return keys[keys.length - 1][1];
-}
 
 /**
  * One character's choreography. `lookX`/`lookY`: pupil offset in eye units.
@@ -69,19 +40,8 @@ export type Choreo = {
   tilt?: Keys;
 };
 
-/** A looping clock from 0 to `period` ms. Frozen at 0 when `live` is false (reduced motion, off screen). */
-export function useChoreoClock(period: number, live: boolean): SharedValue<number> {
-  const clock = useSharedValue(0);
-  useEffect(() => {
-    cancelAnimation(clock);
-    // withRepeat restarts from the CURRENT value: always reset first.
-    clock.value = 0;
-    if (!live) return;
-    clock.value = withRepeat(withTiming(period, { duration: period, easing: Easing.linear }), -1);
-    return () => cancelAnimation(clock);
-  }, [live, period, clock]);
-  return clock;
-}
+/** The character's clock: a loop of `period` ms, frozen at 0 when `live` is false. */
+export const useChoreoClock = useLoopClock;
 
 /** A rounded pill (stadium) path centred on (cx, cy). */
 export function pill(cx: number, cy: number, w: number, h: number): string {
