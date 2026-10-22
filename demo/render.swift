@@ -1,10 +1,9 @@
-// render.swift: renders the demo scene to PNG frames (macOS 14+).
+// render.swift: renders a demo scene to PNG frames (macOS 14+).
 //
 //   swiftc -parse-as-library -target arm64-apple-macos14 \
-//     templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift \
-//     demo/DemoScene.swift demo/render.swift -o /tmp/render-demo
-//   /tmp/render-demo /tmp/frames
-//   ffmpeg -framerate 30 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 18 demo/demo.mp4
+//     templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift demo/*.swift -o /tmp/render-demo
+//   /tmp/render-demo room /tmp/frames      # or: orbit
+//   ffmpeg -framerate 30 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 20 demo/demo.mp4
 import Foundation
 import ImageIO
 import SwiftUI
@@ -14,13 +13,17 @@ import UniformTypeIdentifiers
 struct RenderDemo {
     @MainActor
     static func main() throws {
-        let out = URL(fileURLWithPath: CommandLine.arguments.count > 1 ? CommandLine.arguments[1] : "frames")
+        let args = CommandLine.arguments
+        let scene = args.count > 1 ? args[1] : "room"
+        let out = URL(fileURLWithPath: args.count > 2 ? args[2] : "frames")
         try FileManager.default.createDirectory(at: out, withIntermediateDirectories: true)
         let fps = 30.0
-        let frames = Int(DemoScene.loopMs / 1000 * fps)
+        let loopMs = scene == "orbit" ? OrbitScene.loopMs : DemoScene.loopMs
+        let frames = Int(loopMs / 1000 * fps)
         for f in 0..<frames {
             let t = Double(f) / fps * 1000
-            let renderer = ImageRenderer(content: DemoScene(t: t))
+            let content: AnyView = scene == "orbit" ? AnyView(OrbitScene(t: t)) : AnyView(DemoScene(t: t))
+            let renderer = ImageRenderer(content: content)
             renderer.scale = 2
             guard let image = renderer.cgImage else { throw CocoaError(.fileWriteUnknown) }
             let url = out.appendingPathComponent(String(format: "%04d.png", f))
@@ -30,6 +33,6 @@ struct RenderDemo {
             CGImageDestinationAddImage(dest, image, nil)
             CGImageDestinationFinalize(dest)
         }
-        print("rendered \(frames) frames to \(out.path)")
+        print("rendered \(frames) frames of \(scene) to \(out.path)")
     }
 }
