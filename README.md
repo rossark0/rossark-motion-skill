@@ -50,6 +50,24 @@ For motion in an interface, it follows [Emil Kowalski's](https://github.com/emil
 - a ball rolls in from off screen, the eyes follow it, the kick hits at the middle of the swing, and the ball flies off spinning; then the kid turns to you and waves;
 - a toy-like build seen from a little above: a big head, a short torso, round shoes and a wide oval shadow.
 
+**Garden** ([source](demo/GardenScene.swift), [MP4](demo/garden.mp4)), a 10-second loop:
+
+<img width="360" alt="A girl in a sun hat waters a sprout; it grows and blooms, a butterfly lands on the flower, she hops with joy, then the petals fall and the sprout returns" src="demo/garden.gif" />
+
+- she pulls the can back, then pours: drops fall in seeded arcs with gravity and the soil darkens as it gets wet;
+- the stem grows in two pushes, the leaves unfurl one after another, and the petals open one by one with a small twist;
+- a butterfly wanders in from off screen and lands, the stem dips under its weight, and her head and eyes track it all the way;
+- she grins and hops, with her pigtails, hat and can trailing the motion; then the petals drift down and the plant settles back into the sprout.
+
+**Chef** ([source](demo/ChefScene.swift), [MP4](demo/chef.mp4)), a 9.6-second loop:
+
+<img width="360" alt="A chef flips a pancake; the second flip goes too high, lands on his hat, wobbles, slides off and he catches it in the pan" src="demo/chef.gif" />
+
+- steam rises from the pan, the flame flickers on two waves, and the burner knob turns up before each flip;
+- the first flip: knees dip, the pancake turns in the air under gravity, his eyes follow it and his head a beat later, and it lands with a squash;
+- the second flip goes too high: surprise, it lands on his hat, the hat squashes and wobbles, the pancake slides off and he catches it with the pan;
+- contact stays exact: every throw starts and ends where the pan or the hat really is, and the hand is solved onto the handle.
+
 **Orbit** ([source](demo/OrbitScene.swift), [MP4](demo/orbit.mp4)):
 
 <img width="360" alt="A round bird with closed eyes floats while a tilted ring of cards orbits around it, with sparkles twinkling" src="demo/orbit.gif" />
@@ -58,21 +76,11 @@ For motion in an interface, it follows [Emil Kowalski's](https://github.com/emil
 - the bird floats and tilts, its wings flutter, and its feet and tufts follow through;
 - sparkles that appear and disappear once per loop, at seeded times.
 
-**Room** ([source](demo/DemoScene.swift), [MP4](demo/demo.mp4)):
-
-<img width="360" alt="A creature with live eyes, snow in the window, steam, a candle and a swaying plant, all on one clock" src="demo/demo.gif" />
-
-- a creature that breathes, with ears that follow through and live eyes that look, blink and smile;
-- snow in the window, with seeded variety;
-- steam that rises and fades;
-- a candle flickering on two waves;
-- a plant swaying around its base, with leaves that lag behind.
-
 To render them again on macOS 14+:
 
 ```bash
 swiftc -parse-as-library -target arm64-apple-macos14 \
   templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift demo/*.swift -o /tmp/render-demo
-/tmp/render-demo reveal /tmp/frames phone fps=60   # or: orbit, room
+/tmp/render-demo reveal /tmp/frames phone fps=60   # or: garden, chef, orbit
 ffmpeg -framerate 60 -i /tmp/frames/%04d.png -c:v libx264 -pix_fmt yuv420p -crf 20 demo/reveal.mp4
 ```

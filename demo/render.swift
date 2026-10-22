@@ -2,7 +2,7 @@
 //
 //   swiftc -parse-as-library -target arm64-apple-macos14 \
 //     templates/swiftui/Motion.swift templates/swiftui/LiveFace.swift demo/*.swift -o /tmp/render-demo
-//   /tmp/render-demo reveal /tmp/frames              # or: orbit, room
+//   /tmp/render-demo reveal /tmp/frames              # or: garden, chef, orbit
 //   /tmp/render-demo reveal /tmp/frames phone        # inside an iPhone, on a square page
 //   /tmp/render-demo reveal /tmp/frames phone fps=60 # smoother, for posting
 //   /tmp/render-demo reveal /tmp/frames phone 0 40   # only these frames (to check before a full render)
@@ -17,8 +17,26 @@ func scene(_ name: String, _ t: Double, phone: Bool) -> (view: AnyView, loopMs: 
     switch name {
     case "orbit":
         return (AnyView(OrbitScene(t: t)), OrbitScene.loopMs)
-    case "room":
-        return (AnyView(DemoScene(t: t)), DemoScene.loopMs)
+    case "garden":
+        guard phone else { return (AnyView(GardenScene(t: t)), GardenScene.loopMs) }
+        // A little wider than the reveal, so the girl, the pot and the flower all fit; feet at 73%.
+        let screen = PhoneMockup<EmptyView>.screen
+        let k = screen.width / 720 * 1.8
+        return (AnyView(PhoneMockup(darkStatus: true) {
+            GardenScene(t: t, height: screen.height / k, stageTop: screen.height * 0.73 / k - 620)
+                .scaleEffect(k, anchor: .topLeading)
+                .offset(x: -(720 * k - screen.width) / 2)
+        }), GardenScene.loopMs)
+    case "chef":
+        guard phone else { return (AnyView(ChefScene(t: t)), ChefScene.loopMs) }
+        // Close on the chef: the counter hides the legs, so the stage sits low and the head is big.
+        let screen = PhoneMockup<EmptyView>.screen
+        let k = screen.width / 720 * 2.35
+        return (AnyView(PhoneMockup(darkStatus: true) {
+            ChefScene(t: t, height: screen.height / k, stageTop: 82)
+                .scaleEffect(k, anchor: .topLeading)
+                .offset(x: -(720 * k - screen.width) / 2)
+        }), ChefScene.loopMs)
     default:
         guard phone else { return (AnyView(RevealScene(t: t)), RevealScene.loopMs) }
         // The 720-wide scene, as big as the screen allows, with the feet at 73% of the screen.
